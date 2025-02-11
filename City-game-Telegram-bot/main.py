@@ -53,9 +53,9 @@ def user_print_city(message):
             if current_city is None:
                 bot.send_message(message.chat.id, f"Ты победил, я не могу назвать ни одного города")
             else:
-                bot.send_message(message.chat.id, f"Хорошо, теперь мой город: {current_city}")
                 cursor.execute("INSERT INTO chats (chat_id, city_name) VALUES (?, ?)", (message.chat.id, current_city))
+                bot.send_message(message.chat.id, f"Хорошо, теперь мой город: {current_city}")
+                database.commit()
             database.close()
-
-
+        
 bot.polling(none_stop=True)
