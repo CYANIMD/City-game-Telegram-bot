@@ -1,27 +1,12 @@
-﻿import telebot
-import sqlite3 as sql
+﻿from func import *
+import telebot
 from telebot import types
+import sqlite3 as sql
+import random
 
 token = "" #Вставить свой токен
+bot = telebot.TeleBot(token) #Инициализация бота
 
-ban_symbol = ['ы', 'ъ', 'ь', 'й'] #"Запретные" буквы
-bot = telebot.TeleBot(token)
-
-#Возвращает случайный город из БД
-def get_random_city(last_city: str) -> str:
-    database = sql.connect("world_cities.db")
-    cursor = database.cursor()
-    last_char = last_city.upper()[-1] if last_city[-1] not in  ban_symbol else last_city.upper()[-2]
-    cursor.execute(f"SELECT name FROM cities WHERE name LIKE \"{last_char}%\"")
-    return cursor.fetchone()[0]
-#Проверяет наличие города в БД
-def check_city(city: str) -> bool:
-    database = sql.connect("world_cities.db")
-    cursor = database.cursor()
-    cursor.execute(f"SELECT name FROM cities WHERE name = \"{city.capitalize()}\"" )
-    result = cursor.fetchone()
-    return result is None
-    
 #Запуск бота
 @bot.message_handler(commands=["start", "main"])
 def main(message):
@@ -45,17 +30,32 @@ def press_button(callback):
             bot.send_message(callback.message.chat.id, "Поиграем в следующий раз, когда ты будешь готов")
         case _:
             bot.send_message(callback.message.chat.id, "Чта?!")
+#Пользователь вводит город
 @bot.message_handler()
-#Отслеживание текста пользователя
 def user_print_city(message):
-    if check_city(message.text):
+    if has_city(message.text):
         bot.send_message(message.chat.id, "Такого города не существует. Попробуй ещё раз");
+    elif is_reused_city(message.text, message.from_user.id):
+        bot.send_message(message.chat.id, "Этот город уже был! Назови другой город");
     else:
-        bot.send_message(message.chat.id, f"Хорошо, теперь мой город: {get_random_city(message.text)}")
-        
+        database = sql.connect(database_title)
+        cursor = database.cursor()
+        cursor.execute(f"SELECT symbol FROM last_symbols WHERE user_id = {message.from_user.id}")
+        temp = cursor.fetchone()
+        if temp is not None and message.text[0].upper() != temp[0].upper():
+            bot.send_message(message.chat.id, f"Этот город не на ту букву. Назови другой город на букву {temp[0].upper()}");
+        else:
+            cursor.execute("INSERT INTO chats (chat_id, city_name) VALUES (?, ?)", (message.chat.id, message.text))
+            database.commit()
+            current_city = get_random_city(message.text);
+            cursor.execute("INSERT INTO last_symbols (user_id, symbol)  VALUES (?, ?)  ON CONFLICT(user_id) DO UPDATE SET symbol = excluded.symbol", (message.from_user.id, get_last_char(current_city)))
+            database.commit()
+            if current_city is None:
+                bot.send_message(message.chat.id, f"Ты победил, я не могу назвать ни одного города")
+            else:
+                bot.send_message(message.chat.id, f"Хорошо, теперь мой город: {current_city}")
+                cursor.execute("INSERT INTO chats (chat_id, city_name) VALUES (?, ?)", (message.chat.id, current_city))
+            database.close()
 
-@bot.message_handler()
-def uncorrect_message(message):
-    bot.send_message(message.chat.id, "Твоё сообщение некорректное!")
 
 bot.polling(none_stop=True)
