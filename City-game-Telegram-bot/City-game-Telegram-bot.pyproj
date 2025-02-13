@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>City-game-Telegram-bot</Name>
     <RootNamespace>City-game-Telegram-bot</RootNamespace>
+    <IsWindowsApplication>False</IsWindowsApplication>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
